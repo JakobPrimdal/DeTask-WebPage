@@ -1,0 +1,31 @@
+/*
+ * App.css
+ * Global shared component styles for DeTask.
+ * Page-level styles live in index.css (Tailwind base/utilities).
+ */
+
+/* ── Scrollbar (optional polish) ────────────────────────────────────────── */
+::-webkit-scrollbar          { width: 6px; height: 6px; }
+::-webkit-scrollbar-track    { background: transparent; }
+::-webkit-scrollbar-thumb    { background: rgba(124,158,143,0.35); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(90,138,120,0.55); }
+
+/* ── Focus ring override (use sage, not browser blue) ───────────────────── */
+:focus-visible {
+  outline: 2px solid var(--sage);
+  outline-offset: 3px;
+}
+
+/* ── Link reset ─────────────────────────────────────────────────────────── */
+a {
+  color: var(--warm);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+a:hover { color: var(--warm-deep); }
+
+/* ── Selection highlight ─────────────────────────────────────────────────── */
+::selection {
+  background: rgba(124,158,143,0.25);
+  color: var(--text-base);
+}
