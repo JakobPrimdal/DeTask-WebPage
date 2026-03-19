@@ -23,16 +23,31 @@ const MOCK_EMPLOYEES = [
   { id: 12, score: 71, mood: 'good',   surveyDone: true,  trend: [68,69,70,70,71,71,71] },
 ];
 
-// Last 7 days survey completion counts
-const WEEK_SURVEY_DATA = [
-  { day: 'Mon', count: 8 },
-  { day: 'Tue', count: 10 },
-  { day: 'Wed', count: 7 },
-  { day: 'Thu', count: 11 },
-  { day: 'Fri', count: 9 },
-  { day: 'Sat', count: 5 },
-  { day: 'Sun', count: MOCK_EMPLOYEES.filter(e => e.surveyDone).length },
-];
+// 30-day history: survey completions + avg wellbeing score per day
+function buildThirtyDays() {
+  const today = new Date();
+  const pseudo = (seed) => { const x = Math.sin(seed + 1) * 10000; return x - Math.floor(x); };
+  return Array.from({ length: 30 }, (_, idx) => {
+    const i = 29 - idx;
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const label = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+    const base = isWeekend ? 4 : 8;
+    const drift = Math.round(idx / 29 * 2);
+    const noise = Math.round((pseudo(i * 7) - 0.5) * 4);
+    const count = i === 0
+      ? MOCK_EMPLOYEES.filter(e => e.surveyDone).length
+      : Math.min(TEAM_SIZE, Math.max(2, base + drift + noise));
+    const scoreBase = 60 + idx / 29 * 7;
+    const scoreNoise = (pseudo(i * 13) - 0.5) * 11;
+    const avgScore = i === 0
+      ? Math.round(MOCK_EMPLOYEES.reduce((s, e) => s + e.score, 0) / MOCK_EMPLOYEES.length)
+      : Math.min(92, Math.max(38, Math.round(scoreBase + scoreNoise)));
+    return { label, count, avgScore, isToday: i === 0 };
+  });
+}
+const THIRTY_DAY_DATA = buildThirtyDays();
 
 /* ─────────────────────────────────────────────
    MOOD CONFIG
@@ -77,34 +92,120 @@ function Sparkline({ data, color }) {
 }
 
 /* ─────────────────────────────────────────────
-   SURVEY BAR CHART (week overview)
+   DUAL-SERIES 30-DAY TREND CHART
+   Left Y  → survey completions (sage green)
+   Right Y → avg wellbeing score (dusty rose)
 ───────────────────────────────────────────── */
-function WeekChart({ data, total }) {
-  const maxVal = total;
+function TrendChart({ data, teamSize }) {
+  const W = 900, H = 180;
+  const PAD = { top: 24, right: 52, bottom: 38, left: 42 };
+  const iW = W - PAD.left - PAD.right;
+  const iH = H - PAD.top - PAD.bottom;
+
+  const toX     = (i) => PAD.left + (i / (data.length - 1)) * iW;
+  const toYLeft = (v) => PAD.top + iH - (v / teamSize) * iH;
+  const toYRight= (v) => PAD.top + iH - ((v - 30) / (100 - 30)) * iH;
+
+  const bezier = (pts) => pts.reduce((acc, pt, i) => {
+    if (i === 0) return `M ${pt.x} ${pt.y}`;
+    const prev = pts[i - 1];
+    const cx = (prev.x + pt.x) / 2;
+    return `${acc} C ${cx} ${prev.y}, ${cx} ${pt.y}, ${pt.x} ${pt.y}`;
+  }, '');
+
+  const surveyPts = data.map((d, i) => ({ x: toX(i), y: toYLeft(d.count) }));
+  const scorePts  = data.map((d, i) => ({ x: toX(i), y: toYRight(d.avgScore) }));
+  const surveyLine = bezier(surveyPts);
+  const scoreLine  = bezier(scorePts);
+  const surveyArea = `${surveyLine} L ${surveyPts[surveyPts.length-1].x} ${PAD.top+iH} L ${surveyPts[0].x} ${PAD.top+iH} Z`;
+  const scoreArea  = `${scoreLine} L ${scorePts[scorePts.length-1].x} ${PAD.top+iH} L ${scorePts[0].x} ${PAD.top+iH} Z`;
+
+  const todayIdx = data.length - 1;
+  const todayS   = surveyPts[todayIdx];
+  const todayW   = scorePts[todayIdx];
+  const leftGrid  = [0, 3, 6, 9, teamSize];
+  const rightGrid = [40, 55, 70, 85, 100];
+
   return (
-    <div className="flex items-end gap-2 h-[80px]">
-      {data.map((d, i) => {
-        const pct = (d.count / maxVal) * 100;
-        const isToday = i === data.length - 1;
-        return (
-          <div key={d.day} className="flex flex-col items-center gap-1.5 flex-1">
-            <span className="text-[0.65rem] text-[var(--text-faint)] font-medium">{d.count}</span>
-            <div className="w-full rounded-t-lg relative overflow-hidden" style={{ height: `${Math.max(pct * 0.6, 6)}px` }}>
-              <div
-                className="absolute inset-0 rounded-t-lg transition-all duration-700"
-                style={{
-                  background: isToday
-                    ? 'linear-gradient(to top, var(--sage-deep), var(--sage))'
-                    : 'rgba(124,158,143,0.25)',
-                }}
-              />
-            </div>
-            <span className={`text-[0.65rem] font-medium ${isToday ? 'text-[var(--sage)]' : 'text-[var(--text-faint)]'}`}>
-              {d.day}
-            </span>
-          </div>
-        );
-      })}
+    <div className="w-full" style={{ height: '190px' }}>
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" style={{ overflow: 'visible' }}>
+        <defs>
+          <linearGradient id="sgGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#7c9e8f" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="#7c9e8f" stopOpacity="0.01" />
+          </linearGradient>
+          <linearGradient id="roseGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#b8849a" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="#b8849a" stopOpacity="0.01" />
+          </linearGradient>
+          <filter id="glow2">
+            <feGaussianBlur stdDeviation="2.5" result="b" />
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+
+        {/* Grid */}
+        {[0.25, 0.5, 0.75, 1].map(f => {
+          const y = PAD.top + iH - f * iH;
+          return <line key={f} x1={PAD.left} y1={y} x2={PAD.left+iW} y2={y}
+            stroke="rgba(124,158,143,0.12)" strokeWidth="1" strokeDasharray="4 4" />;
+        })}
+        <line x1={PAD.left} y1={PAD.top+iH} x2={PAD.left+iW} y2={PAD.top+iH}
+          stroke="rgba(124,158,143,0.2)" strokeWidth="1" />
+
+        {/* Left Y labels — survey count */}
+        {leftGrid.map(v => (
+          <text key={`l${v}`} x={PAD.left-7} y={toYLeft(v)+4}
+            textAnchor="end" fontSize="9" fill="rgba(90,138,120,0.7)" fontFamily="system-ui">{v}</text>
+        ))}
+
+        {/* Right Y labels — wellbeing score */}
+        {rightGrid.map(v => (
+          <text key={`r${v}`} x={PAD.left+iW+7} y={toYRight(v)+4}
+            textAnchor="start" fontSize="9" fill="rgba(158,96,128,0.7)" fontFamily="system-ui">{v}</text>
+        ))}
+
+        {/* Today guide */}
+        <line x1={todayS.x} y1={PAD.top} x2={todayS.x} y2={PAD.top+iH}
+          stroke="rgba(90,138,120,0.18)" strokeWidth="1.5" strokeDasharray="3 3" />
+
+        {/* Areas + lines */}
+        <path d={surveyArea} fill="url(#sgGrad)" />
+        <path d={scoreArea}  fill="url(#roseGrad)" />
+        <path d={surveyLine} fill="none" stroke="#7c9e8f" strokeWidth="2.2"
+          strokeLinecap="round" strokeLinejoin="round" />
+        <path d={scoreLine}  fill="none" stroke="#b8849a" strokeWidth="2.2"
+          strokeLinecap="round" strokeLinejoin="round" />
+
+        {/* Today dots */}
+        <circle cx={todayS.x} cy={todayS.y} r="5.5" fill="#5a8a78" filter="url(#glow2)" />
+        <circle cx={todayW.x} cy={todayW.y} r="5.5" fill="#9e6080" filter="url(#glow2)" />
+
+        {/* Today value callouts */}
+        <text x={todayS.x-12} y={todayS.y-12} textAnchor="middle"
+          fontSize="11" fontWeight="700" fill="#5a8a78" fontFamily="system-ui">
+          {data[todayIdx].count}
+        </text>
+        <text x={todayW.x+12} y={todayW.y-12} textAnchor="middle"
+          fontSize="11" fontWeight="700" fill="#9e6080" fontFamily="system-ui">
+          {data[todayIdx].avgScore}
+        </text>
+
+        {/* X-axis labels — every 5th + today */}
+        {data.map((d, i) => {
+          const isToday = i === todayIdx;
+          if (!isToday && i % 5 !== 0) return null;
+          return (
+            <text key={i} x={toX(i)} y={H-4} textAnchor="middle"
+              fontSize="9.5"
+              fontWeight={isToday ? '700' : '400'}
+              fill={isToday ? '#5a8a78' : 'rgba(138,126,118,0.6)'}
+              fontFamily="system-ui">
+              {isToday ? `${d.label} ✦` : d.label}
+            </text>
+          );
+        })}
+      </svg>
     </div>
   );
 }
@@ -293,25 +394,34 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* ── TWO-COL: survey chart + mood breakdown ───────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-10">
-
-          {/* Survey 7-day chart */}
-          <div className="bg-white rounded-2xl border border-[var(--border-soft)] shadow-[0_2px_16px_rgba(100,80,60,0.06)] p-6 animate-fade-up-2">
-            <div className="flex items-center justify-between mb-5">
+        {/* ── FULL-WIDTH 30-day dual trend chart ──────────────────────── */}
+        <div className="mb-4 animate-fade-up-2">
+          <div className="bg-white rounded-2xl border border-[var(--border-soft)] shadow-[0_2px_16px_rgba(100,80,60,0.06)] p-6">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
               <div>
-                <h2 className="font-display text-[1.2rem] font-normal text-[var(--text-base)]">Survey completions</h2>
-                <p className="text-[0.78rem] text-[var(--text-faint)] mt-0.5">Past 7 days · today highlighted</p>
+                <h2 className="font-display text-[1.25rem] font-normal text-[var(--text-base)]">30-day team trends</h2>
+                <p className="text-[0.78rem] text-[var(--text-faint)] mt-0.5">Past 30 days · today highlighted ✦</p>
               </div>
-              <div className="text-[0.72rem] font-medium bg-[rgba(90,138,120,0.1)] text-[var(--sage-deep)] rounded-full px-3 py-1">
-                {surveyDoneToday} today
+              <div className="flex flex-wrap items-center gap-5 flex-shrink-0">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-[3px] rounded-full bg-[#7c9e8f]" />
+                  <span className="text-[0.75rem] font-medium text-[var(--text-muted)]">Survey completions</span>
+                  <span className="text-[0.72rem] bg-[rgba(90,138,120,0.1)] text-[var(--sage-deep)] rounded-full px-2.5 py-0.5 font-medium">{surveyDoneToday}/{TEAM_SIZE} today</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-[3px] rounded-full bg-[#b8849a]" />
+                  <span className="text-[0.75rem] font-medium text-[var(--text-muted)]">Avg wellbeing score</span>
+                  <span className="text-[0.72rem] bg-[rgba(184,132,154,0.1)] text-[#9e6080] rounded-full px-2.5 py-0.5 font-medium">{avgScore}/100 today</span>
+                </div>
               </div>
             </div>
-            <WeekChart data={WEEK_SURVEY_DATA} total={TEAM_SIZE} />
+            <TrendChart data={THIRTY_DAY_DATA} teamSize={TEAM_SIZE} />
           </div>
+        </div>
 
-          {/* Mood distribution */}
-          <div className="bg-white rounded-2xl border border-[var(--border-soft)] shadow-[0_2px_16px_rgba(100,80,60,0.06)] p-6 animate-fade-up-2 [animation-delay:0.1s]">
+        {/* ── MOOD DISTRIBUTION ──────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-10">
+          <div className="bg-white rounded-2xl border border-[var(--border-soft)] shadow-[0_2px_16px_rgba(100,80,60,0.06)] p-6 animate-fade-up-2">
             <div className="mb-5">
               <h2 className="font-display text-[1.2rem] font-normal text-[var(--text-base)]">Mood distribution</h2>
               <p className="text-[0.78rem] text-[var(--text-faint)] mt-0.5">Today's anonymous responses</p>
@@ -337,6 +447,7 @@ export default function Dashboard() {
               })}
             </div>
           </div>
+          <div className="hidden lg:block" />
         </div>
 
         {/* ── EMPLOYEE CARDS ──────────────────────────────────────────── */}
