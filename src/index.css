@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap');
+/* No import needed for Calibri, it's a system font on Windows */
 
 @tailwind base;
 @tailwind components;
@@ -6,11 +6,11 @@
 
 /* ── CSS custom properties ─────────────────────────────────────────────── */
 :root {
-  --font-display: 'Cormorant Garamond', Georgia, serif;
-  --font-body:    'DM Sans', system-ui, sans-serif;
+  --font-display: 'Calibri', Arial, sans-serif;
+  --font-body:    'Calibri', Arial, sans-serif;
 
   /* Mental-health palette */
-  --cream:        #f7f3ee;
+  --cream:        #f3e7d9;
   --cream-card:   #ffffff;
   --sage:         #7c9e8f;
   --sage-deep:    #5a8a78;
@@ -31,7 +31,7 @@
 
   body {
     margin: 0;
-    font-family: var(--font-body);
+    font-family: 'Calibri', Arial, sans-serif;
     background-color: var(--cream);
     color: var(--text-base);
     -webkit-font-smoothing: antialiased;
@@ -46,18 +46,56 @@
   }
 
   h1, h2, h3 {
-    font-family: var(--font-display);
+    font-family: 'Calibri', Arial, sans-serif;
     font-weight: 400;
     color: var(--text-base);
     margin: 0;
   }
 
-  p { margin: 0; }
+  p { margin: 0; font-family: 'Calibri', Arial, sans-serif; }
+
+  input, button, label, span, div {
+    font-family: 'Calibri', Arial, sans-serif !important;
+  }
 
   input:-webkit-autofill {
     -webkit-box-shadow: 0 0 0 40px #f5f0eb inset !important;
     -webkit-text-fill-color: var(--text-base) !important;
+    font-family: 'Calibri', Arial, sans-serif !important;
   }
+
+}
+
+#branding-panel {
+  padding: 10px;
+}
+
+#branding-panel-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+#badges {
+  margin-top: 20px;
+}
+
+#email-input {
+
+}
+
+#password-input {
+
+}
+
+#login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+#login-subtitle {
+  margin-bottom: 1.5rem;
 }
 
 /* ── Utility component classes ─────────────────────────────────────────── */
@@ -95,4 +133,41 @@
   .animate-fade-up-4 { animation: fade-up 0.65s 0.32s ease both; }
   .animate-fade-up-5 { animation: fade-up 0.65s 0.42s ease both; }
   .animate-fade-up-6 { animation: fade-up 0.65s 0.52s ease both; }
+}
+
+/*  Dashboard */
+#navBar {
+  padding: 10px;
+}
+
+#eventform {
+  margin-bottom: 30px;
+}
+
+#DeTaskInc {
+  margin: 10px;
+}
+
+#bottom-spacing {
+  margin-top: 20px;
+}
+
+#create-event-btn {
+  margin: 10px;
+}
+
+#upcoming-events-header {
+  margin: 15px;
+}
+
+#mood-distribution {
+  padding: 10px;
+}
+
+.modern-datepicker-popper {
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  min-width: 320px;
+  z-index: 9999;
+
 }
