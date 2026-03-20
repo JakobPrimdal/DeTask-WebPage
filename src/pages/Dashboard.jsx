@@ -1,8 +1,8 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { fetchEvents, createEvent } from '../service/eventService';
 import { useNavigate } from 'react-router-dom';
 import StatCard from '../components/StatCard';
-import EmployeeCard from '../components/EmployeeCard';
 import TrendChart from '../components/TrendChart';
 
 import { MOOD, scoreColor } from '../components/moodUtils';
@@ -32,9 +32,22 @@ export default function Dashboard() {
     return true;
   });
 
-  const handleAddEvent = (event) => {
-    setEvents(prev => [...prev, event]);
-    setShowEventForm(false);
+  // Fetch events from backend on mount
+  useEffect(() => {
+    fetchEvents()
+      .then(setEvents)
+      .catch(() => setEvents([]));
+  }, []);
+
+  // Add event to backend and update state
+  const handleAddEvent = async (event) => {
+    try {
+      const saved = await createEvent(event);
+      setEvents(prev => [...prev, saved]);
+      setShowEventForm(false);
+    } catch {
+      // Optionally show an error
+    }
   };
 
   return (
