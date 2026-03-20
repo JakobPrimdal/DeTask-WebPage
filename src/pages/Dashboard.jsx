@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { fetchEvents, createEvent } from '../service/eventService';
+import apiService from '../service/apiService';
 import { useNavigate } from 'react-router-dom';
 import StatCard from '../components/StatCard';
 import TrendChart from '../components/TrendChart';
@@ -20,6 +21,7 @@ export default function Dashboard() {
   const [filter, setFilter] = useState('all'); // 'all' | 'done' | 'pending'
   const [events, setEvents] = useState([]);
   const [showEventForm, setShowEventForm] = useState(false);
+  const [teamPoints, setTeamPoints] = useState(null);
 
   const today = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
   const surveyDoneToday = MOCK_EMPLOYEES.filter(e => e.surveyDone).length;
@@ -37,6 +39,13 @@ export default function Dashboard() {
     fetchEvents()
       .then(setEvents)
       .catch(() => setEvents([]));
+    // Fetch team's points from backend
+    apiService.get('/api/v1/team-scores/total')
+      .then(res => {
+        // Expecting { totalPoints: number }
+        setTeamPoints(res.totalPoints);
+      })
+      .catch(() => setTeamPoints(null));
   }, []);
 
   // Add event to backend and update state
@@ -94,14 +103,22 @@ export default function Dashboard() {
             icon="👥"
             delay="0s"
           />
-          <StatCard
-            label="Surveys today"
-            value={`${surveyDoneToday}/${TEAM_SIZE}`}
-            sub={`${Math.round((surveyDoneToday / TEAM_SIZE) * 100)}% completion`}
-            accent="var(--sage-deep)"
-            icon="📋"
-            delay="0.08s"
-          />
+          <div className="flex flex-col gap-2">
+            <StatCard
+              label="Surveys today"
+              value={`${surveyDoneToday}/${TEAM_SIZE}`}
+              sub={`${Math.round((surveyDoneToday / TEAM_SIZE) * 100)}% completion`}
+              accent="var(--sage-deep)"
+              icon="📋"
+              delay="0.08s"
+            />
+            <div className="bg-white rounded-2xl border border-[var(--border-soft)] shadow-[0_2px_16px_rgba(100,80,60,0.06)] px-6 py-3 mt-1 flex flex-col items-start">
+              <span className="text-[0.8rem] text-[var(--text-muted)] mb-1">The team's points</span>
+              <span className="text-[1.5rem] font-display font-semibold text-[var(--sage-deep)]">
+                {teamPoints !== null ? teamPoints : '...'}
+              </span>
+            </div>
+          </div>
           <StatCard
             label="Avg. wellbeing"
             value={avgScore}

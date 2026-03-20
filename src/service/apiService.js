@@ -19,3 +19,14 @@ export async function fetchGeminiIdeas(previousIdeas = []) {
     .map(line => line.replace(/^\d+\.\s*/, '').trim())
     .filter(Boolean);
 }
+
+// Simple API helper for GET requests
+const apiService = {
+  async get(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('API error');
+    return res.json();
+  }
+};
+
+export default apiService;

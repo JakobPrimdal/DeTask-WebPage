@@ -1,20 +1,35 @@
 import React, { useState } from 'react';
 import ModernDatePicker from './ModernDatePicker';
 
+
 function EventForm({ onAddEvent }) {
-  const [title, setTitle] = useState('');
-  const [time, setTime] = useState(null);
+  const [name, setName] = useState('');
+  const [startsAt, setStartsAt] = useState(null);
   const [location, setLocation] = useState('');
   const [description, setDescription] = useState('');
+  const [status, setStatus] = useState('scheduled');
+  const [teamId, setTeamId] = useState(1); // Numeric teamId for backend compatibility
+  const [createdBy, setCreatedBy] = useState(1); // Numeric userId for backend compatibility
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!title || !time || !location || !description) return;
-    onAddEvent({ title, time, location, description });
-    setTitle('');
-    setTime(null);
+    if (!name || !startsAt || !location || !description) return;
+    onAddEvent({
+      // id is assigned by backend
+      teamId,
+      name,
+      description,
+      startsAt: startsAt instanceof Date ? startsAt.toISOString() : startsAt,
+      status,
+      createdBy,
+      location
+    });
+    setName('');
+    setStartsAt(null);
     setLocation('');
     setDescription('');
+    setStatus('scheduled');
+    // teamId and createdBy remain the same
   };
 
   return (
@@ -28,14 +43,14 @@ function EventForm({ onAddEvent }) {
         <input
           className="rounded-xl border-0 bg-[var(--cream)]/80 shadow-inner px-4 py-3 text-[1.08rem] text-center appearance-none focus:outline-none focus:ring-2 focus:ring-[var(--sage)] transition-all placeholder:text-[var(--text-muted)]"
           type="text"
-          placeholder="Event Title"
-          value={title}
-          onChange={e => setTitle(e.target.value)}
+          placeholder="Event Name"
+          value={name}
+          onChange={e => setName(e.target.value)}
           required
         />
         <ModernDatePicker
-          value={time}
-          onChange={date => setTime(date)}
+          value={startsAt}
+          onChange={date => setStartsAt(date)}
         />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
